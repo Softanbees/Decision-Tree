@@ -1,0 +1,298 @@
+---
+title: "Decision Tree"
+author: "Softanbees Technologies Pvt. Ltd"
+output: 
+    html_document:
+      toc: true
+      toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(ipred)
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(rsample)
+library(caret)
+library(tidymodels)
+library(AmesHousing)
+```
+
+The Decision Tree Algorithm is one such algorithm that is used to solve both Regression and classification problems. Tree based methods are simple and useful for interpretation. However, they typically are not competitive with the best supervised learning approaches, in terms of prediction accuracy. But in some cases these algorithms can often result in dramatic improvements in prediction accuracy. 
+
+
+## Why Decision Tree Algorithm?
+
+Decision Tree is considered to be on of the most useful supervised machine learning algorithm since it can be used to solve variety of problems. 
+
+1. Decision tree is easily interpreted and understandable.
+2. It can be used for both classification and regression problems.
+3. Unlike most machine learning algorithms, it works effectively with non linear data 
+4. Constructing a decision tree is quick process since it uses only one feature per node to split the data 
+
+## Basics about Decision Tree
+
+A Decision Tree is a Supervised Machine Learning algorithm which looks like an inverted tree, wherein each node represents a predictor variable (feature), the link between the nodes represents a Decision and each leaf node represents an outcome (response variable). 
+
+Let's understand the concept with an example:
+
+![](/Users/tanvir/Desktop/softanbees_files/Decision_Tree/decision_tree.png)
+
+in the above example we can see a decision tree (this also can be called as Binary Tree). let's say we want to predict whether a person is fit given their age, eating habit and physical activity. The decision nodes are "Age<30" , "Eat's a lot of pizza and burger and "Exercising in the decision morning". And the leaves, which are the outcomes like either 'fit', or 'unfit'. In this case this was a binary classification problem. 
+
+If we sum up the whole concepts in few points:
+
+* The general idea is that we will have to segment the predictor space into a number of simple regions 
+
+* In order to make a prediction for a given observation, we typically use the mean of the training data in the region to which it belongs.
+
+* Since the set of splitting rules used to segment the predictor space can be summarized by a tree such approacehs are called decision tree methods.
+
+* These methods are simple and useful for interpretation 
+
+* We want to predict a response or class \(Y\) from inputs \(X_1\), \(X_2\), \(X_3\), \(X_p\). We do this by growing a binary tree. 
+
+* At each internal node in the tree, we apply a test to one of the inputs, say \(X_i\)
+
+* Depending on the outcome of the test, we go to either the left or the right sub-branch of the tree.
+
+* Eventually we come to a leaf node, where we make a prediction
+
+* Decision trees can be applied to both regression and classification problems 
+
+These are few basic concepts of decision tree. Now let's see the structure:
+
+* **Root Node:** The root node is the starting point of a tree. At this point, the first split is performed. 
+
+* **Internal Nodes:** Each internal node represents a decision point (prdictor variable) that eventually leads to the prediction of the outcome. 
+
+* **Leaf/Terminal Nodes:** Leaf nodes represent the final class of the outcome and therefore they are also called terminating nodes. 
+
+* **Branches:** Branches are connections between nodes, they are represented as arrows. Each branch represents a response such as yes or no. 
+
+### How does decision tree algorithm work?
+
+The Decision Tree algorithm follows the below steps:
+
+**Step 1:** Select the feature (predictor variable) that best classifies the data set into the desired classes and assign that feature to the root node.
+
+**Step 2:** Traverse down from the root node, whilst making relevant decisions at each internal node such that each internal node best classifies the data.
+
+**Step 3:** Route back to step 1 and repeat until you assign a class to the input data.
+
+### Assumptions while creating Decision Tree
+
+Below are some of the assumptions we make while using Decision tree:
+
+* In the beginning, the whole training set is considered as the **root**. 
+
+* Feature values are preferred to be categorical. If the values are continuous then they are discretized prior to building the model.
+
+* Records are **distributed recursively** on the basis of attribute values.
+
+* Order to placing attributes as root or internal node of the tree is done by using some statistical approach.
+
+
+The algorithm selection is also based on the type of target variables. Let us look at some algorithms used in decision trees:
+
+**ID3** - (Extension of D3)
+**C4.5** - (Successor of ID3)
+**CART** - (classification and Regression Tree)
+**CHAID** - (Chi-Square automatic interaction detection performs multi-level splits when computing classification trees)
+**MARS** - (multivariate adaptive regression splines)
+
+## Practical Implementation 
+
+### Regression Tree 
+
+To illustrate various regularization concepts we will use the Ames Housing data that has been included in the AmesHousing package.
+
+```{r}
+#dataset
+ames_dataset <- AmesHousing::make_ames()
+skimr::skim(ames_dataset)
+```
+
+
+```{r}
+# Create training (70%) and test (30%) sets for the AmesHousing::make_ames() data.
+# Use set.seed for reproducibility
+
+set.seed(123)
+ames_split <- initial_split(ames_dataset, prop = .7)
+ames_train <- training(ames_split)
+ames_test  <- testing(ames_split)
+```
+
+There are many methodologies for constructing regression trees but one of the oldest is known as the classification and regression tree (CART) approach developed by Breiman et al.(1984). Basic regression trees partition a data set into smaller subgroups and then fit a simple constant for each observation in the subgroup. The partitioning is achieved by successive binary partitions (aka recursive partitioning) based on the different predictors. The constant to predict is based on the average response values for all observations that fall in that subgroup.
+
+**Deciding on splits** 
+
+First of all, its important to realize the partitioning of variables are done in a top-down greedy fashion. This just means that a partition performed earlier in the tree will not change based on later partitions. but how are these partitions made?
+
+The model begins with the entire data set, S, and searches every distinct value of every input variable to find the predictor and split value that partitions the data into two regions  (\(R_1\) and \(R_2\)) such that the overall sums of squares error are minimized.
+
+Having found the best split, we partition the data into the two resulting regions and repeat the splitting process on each of the two regions. This process is continued until some stopping criterion is reached. What results is, typically, a very deep, complex tree that may produce good predictions on the training set, but is likely to overfit the data, leading to poor performance on unseen data. For that we generally prune the tree and find the best split.
+
+
+**Cost Complexity Criterion**
+There is often a balance to be achieved in the depth and complexity of the tree to optimize predictive performance on some unseen data. To find this balance, we typically grow a very large tree as defined in the previous section and then prune it back to find an optimal subtree. We find the optimal subtree by using a cost complexity parameter $\alpha$. For a given value of $\alpha$, we find the smallest pruned tree that has the lowest penalized error. 
+
+Consequently, as a tree grows larger, the reduction in the SSE must be greater than the cost complexity penalty. Typically, we evaluate multiple models across a spectrum of $\alpha$ and use cross-validation to identify the optimal $\alpha$ and, therefore, the optimal subtree.
+
+**Cross Validation and Pruning**
+
+The tree package contains functions prune.tree and cv.tree for pruning trees by cross-validation.The function prune.tree takes a tree you fit by tree, and evaluates the error of the tree and various prunings of the tree, all the way down to the stump.
+The evaluation can be done either on new data, if supplied, or on the training data (the default).If you don’t ask it for the best tree, it gives an object which shows the number of leaves in the pruned trees, and the error of each one.
+
+**Pruning**
+
+The prune.tree has an optional method argument.The default is method=“deviance”, which fits by minimizing the mean squared error (for continuous responses) or the negative log likelihood (for discrete responses).The function cv.tree does k-fold cross-validation (default is 10).It requires as an argument a fitted tree, and a function which will take that tree and new data. By default, this function is prune.tree.
+
+#### Weaknesses of regression tree:
+
+* Single regression trees have high variance, resulting in unstable predictions (an alternative subsample of training data can significantly change the terminal nodes).
+
+* Due to the high variance single regression trees have poor predictive accuracy. 
+
+We can fit a regression tree using **rpart** and then visualize it using **rpart.plot**. However, when fitting a regression tree, we need to set **method = "anova"**. 
+
+```{r}
+m1 <- rpart(
+  formula = Sale_Price ~ .,
+  data    = ames_train,
+  method  = "anova"
+  )
+
+m1
+```
+
+Once we’ve fit our model we can take a peak at the m1 output. This just explains steps of the splits. For example, we start with 2051 observations at the root node (very beginning) and the first variable we split on (the first variable that optimizes a reduction in SSE) is **Overall_Qual**. We see that at the first node all observations with **Overall_Qual=Very_Poor,Poor,Fair,Below_Average,Average,Above_Average,Good** go to the 2nd (**2**)) branch. The total number of observations that follow this branch (1699), their average sales price (156147.10) and SSE (4.001092e+12) are listed. If you look for the 3rd branch (**3)**) you will see that 352 observations with
+**Overall_Qual=Very_Good,Excellent,Very_Excellent** follow this branch and their average sales prices is 304571.10 and the SEE in this region is 2.874510e+12. Basically, this is telling us the most important variable that has the largest reduction in SEE initially is **Overall_Qual** with those homes on the upper end of the quality spectrum having almost double the average sales price.
+
+We can visualize our model with rpart.plot. 
+
+```{r}
+rpart.plot(m1)
+```
+
+Behind the scenes rpart is automatically applying a range of cost complexity($\alpha$) values to prune the tree. To compare the error for each $\alpha$ value, rpart performs a 10-fold cross validation so that the error associated with a given $\alpha$ value is computed on the hold-out validation data.
+
+```{r}
+plotcp(m1)
+```
+
+To illustrate the point of selecting a tree with 12 terminal nodes, we can force **rpart** to generate a full tree by using **cp = 0** (no penalty results in a fully grown tree). We can see that after 13 terminal nodes, we see diminishing returns in error reduction as the tree grows deeper. Thusm we can significantly prune our tree and still achieve minimal expected error. 
+
+```{r}
+m2 <- rpart(
+    formula = Sale_Price ~ .,
+    data    = ames_train,
+    method  = "anova", 
+    control = list(cp = 0, xval = 10)
+)
+
+plotcp(m2)
+abline(v = 13, lty = "dashed")
+```
+
+```{r}
+m1$cptable
+```
+
+So, by default, **rpart** is performing some automated tuning, with an optimal subtree of 11 splits, 13 terminal nodes, and a cross validated error of 0.263.However, we can perform additional tuning to try improve model performance.
+
+**Tuning** 
+In addition to the cost complexity ($\alpha$) parameter, it is also common to tune:
+
+* **minsplit:** the minimum number of data points required to attempt a split before it is forced to create a terminal node. The default is 20. Making this smaller allows for terminal nodes that may contain only a handful of observations to create the predicted value.
+
+* **maxdepth:** the maximum number of internal nodes between the root node and the terminal nodes. The default is 30, which is quite liberal and allows for fairly large trees to be built.
+
+**rpart** uses a special **control** argument where we provide a list of hyperparameter values. For example, if we wanted to assess a model with minsplit = 10 and maxdepth = 12, we could execute the following:
+
+```{r}
+m3 <- rpart(
+  formula = Sale_Price~.,
+  data = ames_train,
+  method = "anova",
+  control = list(minsplit = 10, maxdepth = 13, xval = 10)
+)
+m3$cptable
+```
+
+To perform a grid search we first create our hyperparameter grid. In this example, I search a range of **minsplit** from 5-20 and **maxdepth** from 8-15 (since our original model found an optimal depth of 12). What results is 128 different combinations, which requires 128 different models. 
+
+```{r}
+hyper_grid <- expand.grid(
+  minsplit = seq(5, 20, 1),
+  maxdepth = seq(8, 15, 1)
+)
+
+head(hyper_grid)
+
+nrow(hyper_grid)
+```
+
+To automate the modeling we simply set up a **for** loop and iterate through each **minsplit** and **maxdepth** combination, We save each model into its own list item.
+
+```{r}
+models <- list()
+
+for (i in 1:nrow(hyper_grid)) {
+  
+  # get minsplit, maxdepth values at row i
+  minsplit <- hyper_grid$minsplit[i]
+  maxdepth <- hyper_grid$maxdepth[i]
+
+  # train a model and store in the list
+  models[[i]] <- rpart(
+    formula = Sale_Price ~ .,
+    data    = ames_train,
+    method  = "anova",
+    control = list(minsplit = minsplit, maxdepth = maxdepth)
+    )
+}
+```
+
+We can now create a function to extract the minimum error associated with the optimal cost complexity ($\alpha$) value for each model.
+
+```{r}
+# function to get optimal cp
+get_cp <- function(x) {
+  min    <- which.min(x$cptable[, "xerror"])
+  cp <- x$cptable[min, "CP"] 
+}
+
+# function to get minimum error
+get_min_error <- function(x) {
+  min    <- which.min(x$cptable[, "xerror"])
+  xerror <- x$cptable[min, "xerror"] 
+}
+
+hyper_grid %>%
+  mutate(
+    cp    = purrr::map_dbl(models, get_cp),
+    error = purrr::map_dbl(models, get_min_error)
+    ) %>%
+  arrange(error) %>%
+  top_n(-5, wt = error)
+```
+
+If we were satisfied with these results we could apply this final optimal model and predict on our test set. The final RMSE is 39852.01 which suggests that, on average, our predicted sales prices are about $39,852 off from the actual sales price.
+
+```{r}
+optimal_tree <- rpart(
+    formula = Sale_Price ~ .,
+    data    = ames_train,
+    method  = "anova",
+    control = list(minsplit = 11, maxdepth = 8, cp = 0.01)
+    )
+
+pred <- predict(optimal_tree, newdata = ames_test)
+RMSE(pred = pred, obs = ames_test$Sale_Price)
+```
+
